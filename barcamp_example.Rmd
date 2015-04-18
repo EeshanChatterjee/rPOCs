@@ -1,0 +1,111 @@
+---
+title: "BCB Spring 15- Analysis in R"
+author: "Eeshan Chatterjee"
+date: "Sunday April 19 2015"
+output: html_document
+runtime: shiny
+---
+
+This R Markdown creates a shiny application that helps visualize basic statistics about campaign performance- from the appnexus export.
+
+```{r, echo=FALSE}
+# Input the file name
+# -----------------------------------
+
+source("~/projects/barcamp/analysis.R")
+# io_list = list('Placeholder')
+
+inputPanel(textInput("filepath",label = "Full path to appnexus csv export file",value = "~/projects/barcamp/myAdvPlacements.csv"))
+renderText(paste0("Reading file: ",input$filepath))
+
+apnreport = reactive(
+  tryCatch(read.csv(text=readLines(input$filepath)[-(1:7)],header = T),
+           error = function(e){
+             return(matrix('Placeholder',1,1))
+           })
+  
+)
+
+
+
+# renderText(paste(apnreport()[1,],collapse = ','))
+renderText("=====================================")
+
+plotData = reactive({
+  analysis = analyseApnData(apnreport())
+#   io_list <<- names(analysis$perf_by_io)
+  return(analysis)
+  })
+io_list = reactive(list(names(plotData()$perf_by_io)))
+
+renderText("\nOverall Performance")
+renderTable(plotData()$overall_performance)
+
+iochoices = reactive(names(plotData()$perf_by_io))
+
+renderText(paste("IOs available: ",paste0(iochoices(),collapse = ", ")))
+renderText("=====================================")
+renderText("IO Level Analysis")
+renderText("=====================================")
+renderUI(
+  selectInput("io_selection",label = "Select IO",
+              choices = iochoices(),
+              selected = iochoices()[1]))
+
+# renderText(input$io_selection)
+
+io_data = reactive(plotData()$perf_by_io[[input$io_selection]])
+
+renderText("=====================================")
+renderText("Performance by Day")
+renderText("=====================================")
+renderPlot({
+  multiplot(plotlist = plot_perf_by_day(io_data()$perf_by_day),cols = 1)
+},height = 1200)
+renderText("=====================================")
+renderText("Performance by Hour of Day")
+renderText("=====================================")
+renderPlot({
+  multiplot(plotlist = plot_perf_by_hourofday(io_data()$perf_by_hour_of_day),cols = 1)
+},height = 1200)
+renderText("=====================================")
+renderText("Performance by lineitem")
+renderText("=====================================")
+renderPlot({
+  multiplot(plotlist = plot_perf_by_lineitem(io_data()$perf_by_lineitem),cols = 2)
+},height = 1200)
+renderText("=====================================")
+
+renderText("=====================================")
+renderText("Line Item Level Analysis")
+renderText("=====================================")
+
+lichoices = reactive(names(plotData()$lineItemData[[input$io_selection]]))
+
+renderText(paste("Line Items available: ",paste0(lichoices(),collapse = ", ")))
+
+renderUI(
+  selectInput("li_selection",label = "Select Line Item",
+              choices = lichoices(),
+              selected = lichoices()[1]))
+renderText(input$li_selection)
+
+li_data = reactive(plotData()$lineItemData[[input$io_selection]][[input$li_selection]])
+
+renderText("=====================================")
+renderText("Line Item Performance by Day")
+renderText("=====================================")
+renderPlot({
+  multiplot(plotlist = plot_perf_by_day(li_data()$perf_day),cols = 1)
+},height = 1200)
+renderText("=====================================")
+renderText("Line Item Performance by Hour of Day")
+renderText("=====================================")
+renderPlot({
+  multiplot(plotlist = plot_perf_by_hourofday(li_data()$perf_hod),cols = 1)
+},height = 1200)
+
+
+```
+
+
